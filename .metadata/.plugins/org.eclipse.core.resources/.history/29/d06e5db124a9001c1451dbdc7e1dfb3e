@@ -1,0 +1,28 @@
+/*
+ * msp.c
+ *
+ *  Created on: Mar 21, 2022
+ *      Author: ASUS
+ */
+
+#include"main.h"
+
+void HAL_MspInit(void)
+{
+	HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
+
+	SCB->SHCSR |= (0x7 << 16); // set USGFAULTENA, BUSFAULTENA, MEMFAULTENA bits from SHCSR
+
+	HAL_NVIC_SetPriority(MemoryManagement_IRQn, 0, 0);
+	HAL_NVIC_SetPriority(BusFault_IRQn, 0, 0);
+	HAL_NVIC_SetPriority(UsageFault_IRQn, 0, 0);
+}
+
+
+void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
+{
+	__HAL_RCC_ADC2_CLK_ENABLE(); // enable ADC2 clock
+
+	HAL_NVIC_EnableIRQ(ADC_IRQn);
+	HAL_NVIC_SetPriority(ADC_IRQn, 1, 0);
+}
