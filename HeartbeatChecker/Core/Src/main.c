@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include<stdarg.h>
-
+#include <time.h>
 void ConfigureSystemClock(void);
 void ConfigureButtonandSensor(void);
 void ADC_Init(void);
@@ -20,21 +20,11 @@ void Error_Handler(void);
 ADC_HandleTypeDef adc;
 UART_HandleTypeDef huart2;
 
-char rate[150];
-
-
-void printmsg(char *format, ...)
-{
-	char str[80];
-
-	va_list args;
-	va_start(args, format);
-	vsprintf(str, format, args);
-	HAL_UART_Transmit(&huart2, (uint8_t*)str, strlen(str), HAL_MAX_DELAY);
-	va_end(args);
-}
-
-
+char *user_data = "put your finger on the sensor. Then, press the button\r\n";
+char data_buffer[50];
+float temp;
+uint16_t rawValue;
+float Vadc;
 int main()
 {
 	HAL_Init();
@@ -44,30 +34,54 @@ int main()
 	ConfigureButtonandSensor();
 	ConfigureUART();
 
-	while(1);
+	if(HAL_UART_Transmit(&huart2, (uint8_t*)user_data, (uint16_t)strlen(user_data), HAL_MAX_DELAY) != HAL_OK)
+	 {
+		 Error_Handler();
+	 }
 
+	for(int i = 0; i < 1000; ++i)
+	{	HAL_ADC_Start(&adc);
+
+		HAL_Delay(10);
+		if(HAL_ADC_PollForConversion(&adc, HAL_MAX_DELAY) == HAL_OK){
+		rawValue += HAL_ADC_GetValue(&adc);
+		}
+
+		HAL_ADC_Stop(&adc);
+	}
+
+	Vadc= (((float)rawValue / 4095));
+
+	sprintf(data_buffer, "Beat: %f\r\n", ((Vadc/10)*60));
+
+	if(HAL_UART_Transmit(&huart2,(uint8_t*)data_buffer,strlen(data_buffer), HAL_MAX_DELAY) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	 while(1);
 }
 
 
 void ADC_Init(void)
 {
-	ADC_HandleTypeDef adc;
 	ADC_ChannelConfTypeDef ch_adc;
 
-	adc.Instance = ADC2;
+	adc.Instance = ADC1;
 	adc.Init.Resolution = ADC_RESOLUTION_12B;
-	adc.Init.EOCSelection = ADC_EOC_SEQ_CONV;
+	adc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
 	adc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-	adc.Init.ClockPrescaler =ADC_CLOCK_SYNC_PCLK_DIV8;
-	adc.Init.ScanConvMode = DISABLE;
+	adc.Init.ClockPrescaler =ADC_CLOCK_SYNC_PCLK_DIV4;
+	adc.Init.ScanConvMode = ENABLE;
 	adc.Init.ContinuousConvMode = ENABLE;
 	adc.Init.NbrOfConversion = 1;
 
+
 	HAL_ADC_Init(&adc);
 
-	ch_adc.Channel = ADC_CHANNEL_1;
+	ch_adc.Channel = ADC_CHANNEL_8;
 	ch_adc.Rank = 1;
-	ch_adc.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+	ch_adc.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&adc, &ch_adc);
 
@@ -106,8 +120,6 @@ void ConfigureSystemClock(void)
 
 void ConfigureUART(void)
 {
-	UART_HandleTypeDef huart2;
-
 	huart2.Instance = USART2;
 	huart2.Init.BaudRate = 115200;
 	huart2.Init.WordLength = UART_WORDLENGTH_8B;
@@ -123,10 +135,11 @@ void ConfigureUART(void)
 
 void ConfigureButtonandSensor(void)
 {
-	GPIO_InitTypeDef button;
+//	GPIO_InitTypeDef button;
 	GPIO_InitTypeDef sensor;
 
 	//init button
+/*	__HAL_RCC_GPIOA_CLK_ENABLE();
 	button.Mode = GPIO_MODE_IT_FALLING;
 	button.Pin = GPIO_PIN_0;
 	button.Pull = GPIO_NOPULL;
@@ -134,20 +147,17 @@ void ConfigureButtonandSensor(void)
 
 	HAL_GPIO_Init(GPIOA, &button);
 
+	HAL_NVIC_SetPriority(EXTI0_IRQn, 15, 0);
+	HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+*/
 	//init sensor
-	button.Mode = GPIO_MODE_ANALOG;
-	button.Pin = GPIO_PIN_1;
-	button.Pull = GPIO_NOPULL;
-
-	HAL_GPIO_Init(GPIOC, &sensor);
+	sensor.Mode = GPIO_MODE_ANALOG;
+	sensor.Pin = GPIO_PIN_0;
+	sensor.Pull = GPIO_NOPULL;
+	__HAL_RCC_GPIOB_CLK_ENABLE();
+	HAL_GPIO_Init(GPIOB, &sensor);
 }
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-	uint16_t rate;
-	rate = HAL_ADC_GetValue(&adc);
-	printmsg("%d\n", rate);
-}
 
 void Error_Handler(void)
 {

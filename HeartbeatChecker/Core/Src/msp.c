@@ -7,6 +7,9 @@
 
 #include"main.h"
 
+extern ADC_HandleTypeDef adc;
+extern UART_HandleTypeDef huart2;
+
 void HAL_MspInit(void)
 {
 	HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
@@ -21,7 +24,11 @@ void HAL_MspInit(void)
 
 void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
 {
-	__HAL_RCC_ADC2_CLK_ENABLE(); // enable ADC2 clock
+	__HAL_RCC_ADC1_CLK_ENABLE(); // enable ADC2 clock
+
+
+//	HAL_NVIC_EnableIRQ(ADC_IRQn);
+//	HAL_NVIC_SetPriority(ADC_IRQn, 0, 0);
 
 }
 
@@ -43,6 +50,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 	HAL_GPIO_Init(GPIOA,&gpio_uart);
 
 	HAL_NVIC_EnableIRQ(USART2_IRQn);
-	HAL_NVIC_SetPriority(USART2_IRQn,15,0);
+	HAL_NVIC_SetPriority(USART2_IRQn, 15, 0);
+
 
 }
