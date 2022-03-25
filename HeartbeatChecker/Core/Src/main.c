@@ -20,7 +20,7 @@ void Error_Handler(void);
 ADC_HandleTypeDef adc;
 UART_HandleTypeDef huart2;
 
-char *user_data = "put your finger on the sensor. Then, press the button\r\n";
+char *user_data = "Put your finger on the sensor. Then, press the button\r\n";
 char data_buffer[50];
 float temp;
 uint16_t rawValue;
@@ -38,26 +38,6 @@ int main()
 	 {
 		 Error_Handler();
 	 }
-
-	for(int i = 0; i < 1000; ++i)
-	{	HAL_ADC_Start(&adc);
-
-		HAL_Delay(10);
-		if(HAL_ADC_PollForConversion(&adc, HAL_MAX_DELAY) == HAL_OK){
-		rawValue += HAL_ADC_GetValue(&adc);
-		}
-
-		HAL_ADC_Stop(&adc);
-	}
-
-	Vadc= (((float)rawValue / 4095));
-
-	sprintf(data_buffer, "Beat: %f\r\n", ((Vadc/10)*60));
-
-	if(HAL_UART_Transmit(&huart2,(uint8_t*)data_buffer,strlen(data_buffer), HAL_MAX_DELAY) != HAL_OK)
-	{
-		Error_Handler();
-	}
 
 	 while(1);
 }
@@ -135,11 +115,11 @@ void ConfigureUART(void)
 
 void ConfigureButtonandSensor(void)
 {
-//	GPIO_InitTypeDef button;
+	GPIO_InitTypeDef button;
 	GPIO_InitTypeDef sensor;
 
 	//init button
-/*	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOA_CLK_ENABLE();
 	button.Mode = GPIO_MODE_IT_FALLING;
 	button.Pin = GPIO_PIN_0;
 	button.Pull = GPIO_NOPULL;
@@ -149,7 +129,7 @@ void ConfigureButtonandSensor(void)
 
 	HAL_NVIC_SetPriority(EXTI0_IRQn, 15, 0);
 	HAL_NVIC_EnableIRQ(EXTI0_IRQn);
-*/
+
 	//init sensor
 	sensor.Mode = GPIO_MODE_ANALOG;
 	sensor.Pin = GPIO_PIN_0;
@@ -158,6 +138,30 @@ void ConfigureButtonandSensor(void)
 	HAL_GPIO_Init(GPIOB, &sensor);
 }
 
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+
+
+	for(int i = 0; i < 1000; ++i)
+	{	HAL_ADC_Start(&adc);
+
+		HAL_Delay(10);
+		if(HAL_ADC_PollForConversion(&adc, HAL_MAX_DELAY) == HAL_OK){
+		rawValue += HAL_ADC_GetValue(&adc);
+		}
+
+		HAL_ADC_Stop(&adc);
+	}
+
+	Vadc= (((float)rawValue / 4095));
+
+	sprintf(data_buffer, "Beat: %f\r\n", ((Vadc/10)*60));
+
+	if(HAL_UART_Transmit(&huart2,(uint8_t*)data_buffer,strlen(data_buffer), HAL_MAX_DELAY) != HAL_OK)
+	{
+		Error_Handler();
+	}
+}
 
 void Error_Handler(void)
 {
