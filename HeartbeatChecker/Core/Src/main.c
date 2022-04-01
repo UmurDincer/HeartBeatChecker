@@ -2,15 +2,20 @@
  * main.c
  *
  *  Created on: Mar 21, 2022
- *      Author: ASUS
+ *      Author: Umur Edip Dinçer
  */
 
 #include "main.h"
 #include <string.h>
 #include <stdio.h>
-#include <stdint.h>
-#include<stdarg.h>
-#include <time.h>
+
+
+
+char *user_data = "Put your finger on the sensor. Then, press the button and wait 10 seconds.\r\n";
+char data_buffer[50];
+uint16_t rawValue;
+uint8_t flag = 0;
+float Vadc;
 
 void ConfigureSystemClock(void);
 void ConfigureButtonandSensor(void);
@@ -25,18 +30,8 @@ ADC_HandleTypeDef adc;
 UART_HandleTypeDef huart2;
 TIM_HandleTypeDef tim2;
 
-
-char *user_data = "Put your finger on the sensor. Then, press the button\r\n";
-char data_buffer[50];
-
-uint16_t rawValue;
-uint8_t flag = 0;
-
-
-
 int main()
-{
-	HAL_Init();
+{	HAL_Init();
 	ConfigureSystemClock();
 	ConfigureUART();
 	ADC_Init();
@@ -67,8 +62,6 @@ void TIM_Init(void)
 	}
 }
 
-
-
 void ADC_Init(void)
 {
 	ADC_ChannelConfTypeDef ch_adc;
@@ -92,6 +85,7 @@ void ADC_Init(void)
 	HAL_ADC_ConfigChannel(&adc, &ch_adc);
 
 }
+
 void ConfigureSystemClock(void)
 {
 	RCC_OscInitTypeDef osc_init;
@@ -164,6 +158,51 @@ void ConfigureButtonandSensor(void)
 	HAL_GPIO_Init(GPIOB, &sensor);
 }
 
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	uint16_t counter = 0;
+	uint16_t pulse = 0;
+
+	HAL_TIM_Base_Start(&tim2);
+
+	while(counter < 1000)
+	{
+		counter++;
+		HAL_ADC_Start(&adc);
+		delay_ms(10);
+		if(HAL_ADC_PollForConversion(&adc, HAL_MAX_DELAY) == HAL_OK){
+
+			rawValue = HAL_ADC_GetValue(&adc);
+			Vadc = 5 * ((float)rawValue / 4095);
+
+			if(Vadc >= 3 && flag == 0){
+				pulse++;
+				flag = 1;
+			}
+			else if(Vadc < 3){
+				flag = 0;
+			}
+		}
+
+		HAL_ADC_Stop(&adc);
+	}
+
+		HAL_TIM_Base_Stop(&tim2);
+		pulse= pulse * 6;
+		sprintf(data_buffer, "\n\nBeat: %d\r\n\n\n", pulse );
+
+		if(HAL_UART_Transmit(&huart2,(uint8_t*)data_buffer,strlen(data_buffer), HAL_MAX_DELAY) != HAL_OK)
+		{
+			Error_Handler();
+		}
+
+		if(HAL_UART_Transmit(&huart2, (uint8_t*)user_data, (uint16_t)strlen(user_data), HAL_MAX_DELAY) != HAL_OK)
+		{
+			 Error_Handler();
+		}
+
+}
+
 void delay_ms(uint16_t ms)
 {
 	for(uint16_t i = 0; i < ms; ++i){
@@ -176,44 +215,6 @@ void delay_us(uint16_t us)
 	__HAL_TIM_GET_COUNTER(&tim2) = 0;
 	while(__HAL_TIM_GET_COUNTER(&tim2) <  us);
 }
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-	uint16_t counter = 0;
-	uint16_t pulse = 0;
-	float Vadc;
-	HAL_TIM_Base_Start(&tim2);
-
-	while(counter < 10000)
-	{
-		counter++;
-		HAL_ADC_Start(&adc);
-		delay_ms(1);
-		if(HAL_ADC_PollForConversion(&adc, HAL_MAX_DELAY) == HAL_OK){
-			rawValue = HAL_ADC_GetValue(&adc);
-
-			if(rawValue >= 3500 && flag == 0){
-				pulse++;
-				flag = 1;
-			}
-			else if(rawValue < 3500){
-				flag = 0;
-			}
-		}
-
-		HAL_ADC_Stop(&adc);
-	}
-
-		HAL_TIM_Base_Stop(&tim2);
-		pulse= pulse * 6;
-		sprintf(data_buffer, "Beat: %d\r\n", pulse);
-
-		if(HAL_UART_Transmit(&huart2,(uint8_t*)data_buffer,strlen(data_buffer), HAL_MAX_DELAY) != HAL_OK)
-		{
-			Error_Handler();
-		}
-
-}
-
 
 void Error_Handler(void)
 {

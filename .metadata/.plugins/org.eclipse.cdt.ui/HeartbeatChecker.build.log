@@ -1,10 +1,10 @@
-19:58:33 **** Incremental Build of configuration Debug for project HeartbeatChecker ****
+13:52:02 **** Incremental Build of configuration Debug for project HeartbeatChecker ****
 make -j8 all 
 arm-none-eabi-size   HeartbeatChecker.elf 
    text	   data	    bss	    dec	    hex	filename
-  26680	    488	   1872	  29040	   7170	HeartbeatChecker.elf
+  26808	    488	   1872	  29168	   71f0	HeartbeatChecker.elf
 Finished building: default.size.stdout
  
 
-19:58:33 Build Finished. 0 errors, 0 warnings. (took 402ms)
+13:52:02 Build Finished. 0 errors, 0 warnings. (took 373ms)
 
