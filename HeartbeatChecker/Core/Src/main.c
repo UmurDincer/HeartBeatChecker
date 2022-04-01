@@ -11,20 +11,29 @@
 #include <stdint.h>
 #include<stdarg.h>
 #include <time.h>
+
 void ConfigureSystemClock(void);
 void ConfigureButtonandSensor(void);
 void ADC_Init(void);
 void ConfigureUART(void);
+void TIM_Init(void);
 void Error_Handler(void);
+void delay_us(uint16_t us);
+void delay_ms(uint16_t us);
 
 ADC_HandleTypeDef adc;
 UART_HandleTypeDef huart2;
+TIM_HandleTypeDef tim2;
+
 
 char *user_data = "Put your finger on the sensor. Then, press the button\r\n";
 char data_buffer[50];
-float temp;
+
 uint16_t rawValue;
-float Vadc;
+uint8_t flag = 0;
+
+
+
 int main()
 {
 	HAL_Init();
@@ -33,14 +42,31 @@ int main()
 	ADC_Init();
 	ConfigureButtonandSensor();
 	ConfigureUART();
+	TIM_Init();
 
 	if(HAL_UART_Transmit(&huart2, (uint8_t*)user_data, (uint16_t)strlen(user_data), HAL_MAX_DELAY) != HAL_OK)
 	 {
 		 Error_Handler();
 	 }
 
-	 while(1);
+	while(1);
 }
+
+void TIM_Init(void)
+{
+	tim2.Instance = TIM2;
+	tim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	tim2.Init.Prescaler = 84 - 1; // 1 us
+	tim2.Init.Period = 0xffff;
+	tim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+	tim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+
+	if(HAL_TIM_Base_Init(&tim2) != HAL_OK)
+	{
+		Error_Handler();
+	}
+}
+
 
 
 void ADC_Init(void)
@@ -138,30 +164,56 @@ void ConfigureButtonandSensor(void)
 	HAL_GPIO_Init(GPIOB, &sensor);
 }
 
+void delay_ms(uint16_t ms)
+{
+	for(uint16_t i = 0; i < ms; ++i){
+		delay_us(1000);
+	}
+}
+
+void delay_us(uint16_t us)
+{
+	__HAL_TIM_GET_COUNTER(&tim2) = 0;
+	while(__HAL_TIM_GET_COUNTER(&tim2) <  us);
+}
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
+	uint16_t counter = 0;
+	uint16_t pulse = 0;
+	float Vadc;
+	HAL_TIM_Base_Start(&tim2);
 
-
-	for(int i = 0; i < 1000; ++i)
-	{	HAL_ADC_Start(&adc);
-
-		HAL_Delay(10);
+	while(counter < 10000)
+	{
+		counter++;
+		HAL_ADC_Start(&adc);
+		delay_ms(1);
 		if(HAL_ADC_PollForConversion(&adc, HAL_MAX_DELAY) == HAL_OK){
-		rawValue += HAL_ADC_GetValue(&adc);
+			rawValue = HAL_ADC_GetValue(&adc);
+
+			if(rawValue >= 3500 && flag == 0){
+				pulse++;
+				flag = 1;
+			}
+			else if(rawValue < 3500){
+				flag = 0;
+			}
 		}
 
 		HAL_ADC_Stop(&adc);
 	}
 
-	Vadc= (((float)rawValue / 4095));
+		HAL_TIM_Base_Stop(&tim2);
+		pulse= pulse * 6;
+		sprintf(data_buffer, "Beat: %d\r\n", pulse);
 
-	sprintf(data_buffer, "Beat: %f\r\n", ((Vadc/10)*60));
+		if(HAL_UART_Transmit(&huart2,(uint8_t*)data_buffer,strlen(data_buffer), HAL_MAX_DELAY) != HAL_OK)
+		{
+			Error_Handler();
+		}
 
-	if(HAL_UART_Transmit(&huart2,(uint8_t*)data_buffer,strlen(data_buffer), HAL_MAX_DELAY) != HAL_OK)
-	{
-		Error_Handler();
-	}
 }
+
 
 void Error_Handler(void)
 {

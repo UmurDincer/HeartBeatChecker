@@ -9,6 +9,7 @@
 
 extern ADC_HandleTypeDef adc;
 extern UART_HandleTypeDef huart2;
+extern TIM_HandleTypeDef tim2;
 
 void HAL_MspInit(void)
 {
@@ -53,4 +54,15 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 	HAL_NVIC_SetPriority(USART2_IRQn, 15, 0);
 
 
+}
+
+
+void HAL_TIM_Base_MspInit(TIM_HandleTypeDef *htim)
+{
+		if(tim2.Instance == TIM2)
+		{
+		__HAL_RCC_TIM2_CLK_ENABLE(); // enable clock for TIM2
+	//	HAL_NVIC_EnableIRQ(TIM2_IRQn); // enable IRQ of Tim2
+	//	HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0); // set priority of tim2 interrupt
+		}
 }
